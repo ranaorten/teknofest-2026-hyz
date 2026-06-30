@@ -1,0 +1,9 @@
+venv/
+weights/offline_pip/
+__pycache__/
+*.pyc
+*.pyo
+outputs/
+*.MP4
+*.mp4
+*.avi

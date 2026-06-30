@@ -1,0 +1,18 @@
+{
+  "camera_matrix": {
+    "fx": 1389,
+    "fy": 1387,
+    "cx": 954,
+    "cy": 559
+  },
+  "dist_coeffs": {
+    "k1":  0.138,
+    "k2": -0.256,
+    "p1":  0.0,
+    "p2":  0.0,
+    "k3":  0.0
+  },
+  "image_width": 1920,
+  "image_height": 1080,
+  "notes": "THYZ_2026 kamera kalibrasyonu — şartname örnek değerleri"
+}

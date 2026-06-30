@@ -1,0 +1,5 @@
+frame_id,translation_x,translation_y,translation_z,gps_health_status,cls,top_left_x,top_left_y,bottom_right_x,bottom_right_y,motion_status,landing_status
+frame_0001,0.0,0.0,50.0,1,0,120,200,280,360,1,-1
+frame_0001,0.0,0.0,50.0,1,1,400,300,460,420,-1,-1
+frame_0002,0.5,0.3,50.1,1,0,118,202,279,361,1,-1
+frame_0003,1.0,0.6,50.2,1,2,600,400,750,550,-1,1
