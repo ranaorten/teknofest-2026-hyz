@@ -7,3 +7,10 @@ outputs/
 *.MP4
 *.mp4
 *.avi
+
+# ORB-SLAM3 test verileri (buyuk, tekrar uretilebilir)
+orbslam3_test_seq/
+orbslam3_full_seq/
+*.npz
+kf_gps_healthy_only*.txt
+vo_scale_signal.csv
