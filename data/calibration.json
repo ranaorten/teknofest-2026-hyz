@@ -1,18 +1,32 @@
 {
-  "camera_matrix": {
-    "fx": 1389,
-    "fy": 1387,
-    "cx": 954,
-    "cy": 559
+  "rgb_1080p": {
+    "fx": 1389.7,
+    "fy": 1387.1,
+    "cx": 954.007,
+    "cy": 558.896,
+    "skew": 0,
+    "radial_distortion": [0.1378, -0.2564],
+    "tangential_distortion": [0, 0],
+    "image_size": [1080, 1920]
   },
-  "dist_coeffs": {
-    "k1":  0.138,
-    "k2": -0.256,
-    "p1":  0.0,
-    "p2":  0.0,
-    "k3":  0.0
+  "rgb_4k": {
+    "fx": 2792.2,
+    "fy": 2795.2,
+    "cx": 1988.0,
+    "cy": 1562.2,
+    "skew": 0,
+    "radial_distortion": [0.0798, -0.1867],
+    "tangential_distortion": [0, 0],
+    "image_size": [3000, 4000]
   },
-  "image_width": 1920,
-  "image_height": 1080,
-  "notes": "THYZ_2026 kamera kalibrasyonu — şartname örnek değerleri"
+  "thermal": {
+    "fx": 731.7965,
+    "fy": 732.0172,
+    "cx": 319.2367,
+    "cy": 251.2424,
+    "skew": 0,
+    "radial_distortion": [-0.3507, 0.1137],
+    "tangential_distortion": [0, 0],
+    "image_size": [512, 640]
+  }
 }

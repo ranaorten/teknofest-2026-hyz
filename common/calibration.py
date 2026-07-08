@@ -1,44 +1,74 @@
 """
-Kamera kalibrasyonu: K matrisi, distorsiyon katsayıları, undistort.
+Piksel -> metre online kalibrasyon (irtifa-bagimli dinamik olcek).
+
+Fizik: metre/piksel orani = Z / f  (Z: yerden yukseklik, f: odak uzakligi)
+Yani drone yukseldikce ayni piksel hareketi daha fazla metreye karsilik gelir.
+
+Kalibrasyon doneminde:
+  - A matrisi ogrenilir (kalibrasyon irtifasindaki px->m donusumu)
+  - k_z ogrenilir: dz = k_z * log(scale). Fiziksel olarak k_z ~ mutlak
+    irtifa Z0'i kodlar (dz = Z * dlog(scale) iliskisinden).
+
+Kesinti doneminde:
+  - Anlik irtifa takip edilir: Z = Z0 + (kumulatif dz)
+  - A matrisi anlik irtifayla olceklenir: A_etkin = A * (Z / Z0)
 """
-
-import json
-import cv2
 import numpy as np
-from pathlib import Path
-
-DEFAULT_CAL = Path(__file__).parent.parent / "data/calibration.json"
 
 
-def load_calibration(path: str | Path = DEFAULT_CAL) -> tuple[np.ndarray, np.ndarray]:
-    """(K, dist_coeffs) döner. K: 3x3, dist: (k1,k2,p1,p2,k3)."""
-    with open(path) as f:
-        cal = json.load(f)
-    cm = cal["camera_matrix"]
-    dc = cal["dist_coeffs"]
-    K = np.array(
-        [[cm["fx"], 0, cm["cx"]],
-         [0, cm["fy"], cm["cy"]],
-         [0,        0,        1]],
-        dtype=np.float64,
-    )
-    dist = np.array(
-        [dc["k1"], dc["k2"], dc["p1"], dc["p2"], dc["k3"]],
-        dtype=np.float64,
-    )
-    return K, dist
+class PixelToMeterCalibration:
+    def __init__(self):
+        self.A = None          # 2x2 donusum matrisi (kalibrasyon irtifasinda)
+        self.k_z = None        # log(scale) -> dz katsayisi (~ mutlak irtifa Z0)
+        self.Z0 = None         # kalibrasyon donemindeki etkin mutlak irtifa
+        self.z_rel = 0.0       # kalibrasyon sonundan itibaren goreli z değişimi
+        self._px = []
+        self._scale = []
+        self._m = []
 
+    def add_sample(self, dx_px, dy_px, scale, dx_m, dy_m, dz_m):
+        """Saglikli donemde her kare icin cagrilir."""
+        self._px.append((dx_px, dy_px))
+        self._scale.append(scale)
+        self._m.append((dx_m, dy_m, dz_m))
 
-def undistort(frame: np.ndarray, K: np.ndarray, dist: np.ndarray) -> np.ndarray:
-    """Lens bozulmasını giderir."""
-    h, w = frame.shape[:2]
-    new_K, roi = cv2.getOptimalNewCameraMatrix(K, dist, (w, h), alpha=0)
-    undist = cv2.undistort(frame, K, dist, None, new_K)
-    x, y, rw, rh = roi
-    return undist[y:y+rh, x:x+rw] if all([rw, rh]) else undist
+    def fit(self, min_samples: int = 30) -> bool:
+        if len(self._px) < min_samples:
+            return False
 
+        P = np.array(self._px)
+        M = np.array(self._m)
+        S = np.log(np.clip(self._scale, 1e-6, None))
 
-if __name__ == "__main__":
-    K, dist = load_calibration()
-    print("K:\n", K)
-    print("dist:", dist)
+        At, *_ = np.linalg.lstsq(P, M[:, :2], rcond=None)
+        self.A = At.T
+
+        denom = float(S @ S)
+        self.k_z = float(S @ M[:, 2]) / denom if denom > 1e-12 else 0.0
+
+        # Mutlak irtifa kestirimi: |k_z| ~ Z0.
+        # (dz = Z*dlog(scale); z ekseni asagi-pozitifse k_z negatif cikar,
+        #  isaretten bagimsiz buyuklugu irtifadir.)
+        self.Z0 = max(abs(self.k_z), 1.0)   # 0'a bolunmeyi onle
+        self.z_rel = 0.0
+        return True
+
+    def is_ready(self) -> bool:
+        return self.A is not None
+
+    def predict(self, dx_px, dy_px, scale):
+        """Kare-arasi piksel hareketini metreye cevirir (irtifa-duyarli)."""
+        if not self.is_ready():
+            return 0.0, 0.0, 0.0
+
+        Z_now = max(self.Z0 + self.z_rel, 1.0)
+        ratio = Z_now / self.Z0
+
+        xy = (self.A * ratio) @ np.array([dx_px, dy_px])
+        dz = self.k_z * np.log(max(scale, 1e-6))
+
+        # Irtifa takibi: scale < 1 => zemin kuculuyor => yukseliyoruz.
+        # log(scale) negatifken irtifa artmali:
+        self.z_rel += -np.log(max(scale, 1e-6)) * Z_now
+
+        return float(xy[0]), float(xy[1]), float(dz)
