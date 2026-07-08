@@ -49,3 +49,36 @@ Donmuş Z, tembellik değil, veri kısıtı altında istatistiksel olarak en sav
 worst-case'de üstünlük. Buradan sonraki olası yönler: (1) barometrik/IMU gibi
 ek sensör sinyali olmadan Z'de daha fazla ilerleme zor görünüyor, (2) X/Y kazancını
 (1.4m/2.2m) production koduna taşımak tek başına değerli olabilir.
+
+## GÜNCELLEME: Derinlik tabanlı Z modeli - FINAL SONUÇ
+
+Şartname kontrol edildi (Bölüm 9.2, Denklem 2): puanlama SADECE ortalama hatayı
+kullanıyor, max hata puanlamaya girmiyor.
+
+Yeni denenen yöntem: ORB-SLAM3'ün track ettiği harita noktalarının medyan
+kamera-çerçevesi derinliği (mono_stream.cc'de SLAM.GetTrackedMapPoints() ile
+çıkarıldı) ile GT Z arasında GPS'li dönemde doğrusal regresyon (z=a*depth+b).
+
+Sonuç (gerçek GPS'siz bölge, 1806 kare, tam production kodu ile):
+- Donmuş Z: 11.21-11.30m ortalama, 22.92m max
+- Derinlik tabanlı Z: **10.76m ortalama** (yarışma kriterine göre EN İYİ), 25.94m max
+- w-ağırlıklı harmanlama denendi (donmuş+derinlik): ortalama/max arasında
+  Pareto tradeoff var, ama şartname sadece ortalamayı puanladığı için
+  w=0 (saf derinlik) resmi kritere göre optimal.
+
+KARAR: Production kodunda (gorev2/position_orbslam.py) derinlik tabanlı Z
+kullanılıyor (w=0). Bu, classical pipeline'ın ~11m'sine karşı gerçek ve
+ölçülebilir bir iyileşme.
+
+## Nihai Mimari (production, dogrulanmis)
+
+- gorev2/orb_slam3_bridge.py: subprocess bridge, ~/ORB_SLAM3/Examples/Monocular/mono_stream
+  ile ham byte protokolu uzerinden haberlesir (19-20 kare/s, hedef 7.5 FPS'in cok uzerinde)
+- gorev2/position_orbslam.py: PositionEstimatorORB
+  - X/Y: online Procrustes kalibrasyonlu delta dead-reckoning
+  - Z: online dogrusal regresyon (harita noktasi derinligi -> Z)
+- Dogrulama: validate_position_orbslam.py -> 10.76m ortalama (tam video, GPS'siz bolge)
+
+## Kalan olasi isler (opsiyonel, gerekli degil)
+- main.py / yarisma sunucu entegrasyonu (server_io ile VideoLoader degisimi)
+- classical-vo-baseline branch'i ile nihai A/B karsilastirma raporu
